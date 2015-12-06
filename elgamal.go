@@ -4,14 +4,32 @@ import (
 	"math/big"
 )
 
+// ElgamalPublicKey représente une clé publique
+type ElgamalPublicKey struct {
+	Q *big.Int // Q est l'ordre du corps Zp
+	G *big.Int // G est le générateur du corps Zp
+	H *big.Int // H = G^X (où x est la clé privée)
+}
+
+// ElgamalPrivateKey représente une clé privée
+type ElgamalPrivateKey struct {
+	X *big.Int // X est généré aléatoirement lors de la création des clés
+}
+
+// ElgamalKeyPair représente un paire de clés (publique, privée)
+type ElgamalKeyPair struct {
+	ElgamalPublicKey
+	ElgamalPrivateKey
+}
+
 // Teste si le nombre x peut être mis sous la forme
 // x = 2 * m   où m est premier
 // Revoie :
 //    - (décomposition, true) si la factorisation a fonctionné
 //    - ([], false) si la factorisation n'a pas fonctionné
 func factorize(x *big.Int) ([]*big.Int, bool) {
+	var res []*big.Int
 	T := new(big.Int)
-	res := make([]*big.Int, 0)
 	n := new(big.Int).Set(x)
 
 	// Vérifie si n est divisible par 2
@@ -51,9 +69,9 @@ func generateCyclicGroup(size int) (p, g *big.Int) {
 // Renvoie vrai si g est générateur du Groupe Zp
 func isGenerator(p, g *big.Int, k []*big.Int) bool {
 	one := big.NewInt(1)
-	p_1 := new(big.Int).Sub(p, one)
+	pMinus1 := new(big.Int).Sub(p, one)
 
-	if new(big.Int).Exp(g, p_1, p).Cmp(N_ONE) != 0 {
+	if new(big.Int).Exp(g, pMinus1, p).Cmp(N_ONE) != 0 {
 		return false
 	}
 
@@ -75,5 +93,24 @@ func findGenerator(p *big.Int, f []*big.Int) *big.Int {
 		if isGenerator(p, g, f) {
 			return g
 		}
+	}
+}
+
+// GenerateElgamalKeyPair génère une paire de clés et la renvoie
+func GenerateElgamalKeyPair(size int) *ElgamalKeyPair {
+	p, g := generateCyclicGroup(size)
+
+	// Calcul de l'ordre de Zp
+	q := new(big.Int).Sub(p, N_ONE)
+
+	// Calcul de x
+	x := randRange(N_ONE, new(big.Int).Sub(q, N_ONE))
+
+	// Calcul de h
+	h := new(big.Int).Exp(g, x, p)
+
+	return &ElgamalKeyPair{
+		ElgamalPublicKey{G: g, Q: q, H: h},
+		ElgamalPrivateKey{X: x},
 	}
 }

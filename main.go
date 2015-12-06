@@ -6,11 +6,11 @@ import (
 	"os"
 )
 
-func Usage() {
+func usage() {
 	fmt.Println("Usage: commande [aes|elgamal]")
 }
 
-func Aes() {
+func aes() {
 	cmd := os.Args[2]
 	switch cmd {
 	case "genkey":
@@ -18,7 +18,7 @@ func Aes() {
 		keySize := fs.Int("size", 128, "Taille de la clé")
 		fs.Parse(os.Args[3:])
 		if fs.Arg(0) == "" {
-			Usage()
+			usage()
 			os.Exit(1)
 		}
 
@@ -33,7 +33,7 @@ func Aes() {
 		fs.Parse(os.Args[3:])
 
 		if fs.Arg(0) == "" || fs.Arg(1) == "" || fs.Arg(2) == "" {
-			Usage()
+			usage()
 			os.Exit(1)
 		}
 
@@ -49,7 +49,7 @@ func Aes() {
 		fs.Parse(os.Args[3:])
 
 		if fs.Arg(0) == "" || fs.Arg(1) == "" {
-			Usage()
+			usage()
 			os.Exit(1)
 		}
 
@@ -65,31 +65,33 @@ func Aes() {
 			WriteBytes(d, dataPath)
 		}
 	default:
-		Usage()
+		usage()
 		os.Exit(1)
 	}
 
 }
-func ElGamal() {}
+
+func elgamal() {}
 
 func cli() {
 	if len(os.Args) < 3 {
-		Usage()
+		usage()
 		os.Exit(1)
 	}
 
 	cmd := os.Args[1]
 	switch cmd {
 	case "aes":
-		Aes()
+		aes()
 	case "elgamal":
-		ElGamal()
+		elgamal()
 	default:
-		Usage()
+		usage()
 		os.Exit(1)
 	}
 }
 
 func main() {
-	fmt.Println(generateCyclicGroup(360))
+	// cli()
+	fmt.Println(GenerateElgamalKeyPair(160))
 }
