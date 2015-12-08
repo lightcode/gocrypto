@@ -91,8 +91,10 @@ func GenerateElgamalKeys(size int) *ElgamalPrivateKey {
 
 func elgamalEncryptBytes(pubkey *ElgamalPublicKey, plaintext []byte) (c1bytes, c2bytes []byte) {
 	var (
-		c2 = new(big.Int)
-		m  = new(big.Int)
+		c2     = new(big.Int)
+		m      = new(big.Int)
+		c2b    []byte
+		offset int
 	)
 
 	// Calcul du nombre de d'élément de Zp
@@ -132,8 +134,8 @@ func elgamalEncryptBytes(pubkey *ElgamalPublicKey, plaintext []byte) (c1bytes, c
 		c2.Mod(c2, p)
 
 		// Copie de c2 dans le chiffré final
-		c2b := c2.Bytes()
-		offset := cipherBlockSize - len(c2b)
+		c2b = c2.Bytes()
+		offset = cipherBlockSize - len(c2b)
 		copy(c2bytes[(i*cipherBlockSize)+offset:(i+1)*cipherBlockSize], c2b)
 	}
 
@@ -142,8 +144,10 @@ func elgamalEncryptBytes(pubkey *ElgamalPublicKey, plaintext []byte) (c1bytes, c
 
 func elgamalDecryptBytes(priv *ElgamalPrivateKey, c1bytes, c2bytes []byte) (plaintext []byte) {
 	var (
-		c2 = new(big.Int)
-		m  = new(big.Int)
+		c2     = new(big.Int)
+		m      = new(big.Int)
+		mb     []byte
+		offset int
 	)
 
 	c1 := new(big.Int).SetBytes(c1bytes)
@@ -178,9 +182,9 @@ func elgamalDecryptBytes(priv *ElgamalPrivateKey, c1bytes, c2bytes []byte) (plai
 		m.Mod(m, p)
 
 		// Copie du résultat dans le tableau de sortie
-		mb := m.Bytes()
-		off := plainBlockSize - len(mb)
-		copy(plaintext[i*plainBlockSize+off:(i+1)*plainBlockSize], mb)
+		mb = m.Bytes()
+		offset = plainBlockSize - len(mb)
+		copy(plaintext[i*plainBlockSize+offset:(i+1)*plainBlockSize], mb)
 	}
 
 	// Supprime le padding
@@ -211,10 +215,7 @@ func ElgamalEncrypt(pubkey *ElgamalPublicKey, plaintext []byte) (ciphertext []by
 	c1, c2 := elgamalEncryptBytes(pubkey, plaintext)
 
 	// Concataine la taille de c1 en mot de 8 bits, c1 et c2 dans un même tableau
-	ciphertext = make([]byte, len(c1)+len(c2)+1)
-	copy(ciphertext[0:len(c1)], c1)
-	copy(ciphertext[len(c1):len(ciphertext)-1], c2)
-	ciphertext[len(ciphertext)-1] = byte(len(c1))
+	ciphertext = append(append(c1, c2...), byte(len(c1)))
 
-	return ciphertext
+	return
 }

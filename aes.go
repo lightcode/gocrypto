@@ -205,21 +205,19 @@ func subKey(ke []byte, i, keySize int) []byte {
 
 // AESEncrypt chiffre avec l'agorithme AES un tableau de
 // byte avec une clé k de taille 128, 192 ou 256 bits
-func AESEncrypt(data, k []byte) []byte {
+func AESEncrypt(data, k []byte) (c []byte) {
 	var block []byte
 
 	data = addPadding(data, 128)
-	r := make([]byte, len(data))
+	c = make([]byte, 0, len(data))
 
 	for i := 0; i < (len(data) / 16); i++ {
 		block = data[i*16 : (i+1)*16]
 		encryptBlock(block, k)
-		for j := range block {
-			r[(i*16)+j] = block[j]
-		}
+		c = append(c, block...)
 	}
 
-	return r
+	return c
 }
 
 // AESDecrypt déchiffre avec l'agorithme AES un tableau
@@ -227,19 +225,17 @@ func AESEncrypt(data, k []byte) []byte {
 func AESDecrypt(cipher, k []byte) []byte {
 	var block []byte
 
-	r := make([]byte, len(cipher))
+	m := make([]byte, 0, len(cipher))
 
 	for i := 0; i < (len(cipher) / 16); i++ {
 		block = cipher[i*16 : (i+1)*16]
 		decryptBlock(block, k)
-		for j := range block {
-			r[(i*16)+j] = block[j]
-		}
+		m = append(m, block...)
 	}
 
-	r = removePadding(r)
+	m = removePadding(m)
 
-	return r
+	return m
 }
 
 // GenerateAESKey génère une clé AES de size bytes
