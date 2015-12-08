@@ -52,11 +52,11 @@ func factorize(x *big.Int) ([]*big.Int, bool) {
 
 // Génère un groupe cyclique Zp, trouve un générateur g et renvoie (p, g)
 // p est un nombre entier de size bits (size est multiple de 8)
-// Le nombre p est également supérieur à 128 bits
+// Le nombre p est également supérieur à la taille maximale d'un message + 1
 func generateCyclicGroup(size int) (p, g *big.Int) {
 	T := new(big.Int)
 	pmin := new(big.Int)
-	pmin.SetBit(pmin, 128, 1)
+	pmin.SetBit(pmin, (elgamalBlockSize*8)+1, 1)
 
 	for {
 		p = generateRandomPrime(size / 8)
