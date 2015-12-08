@@ -7,7 +7,22 @@ import (
 )
 
 func usage() {
-	fmt.Println("Usage: commande [aes|elgamal]")
+	fmt.Println(`
+Usage: gocrypto { aes | elgamal }
+
+    * gocrypto aes
+            genkey [-size=128] <key-file>
+            encrypt <key-file> <in-file> <out-file>
+            decrypt <key-file> <in-file> <out-file>
+
+    * gocrypto elgamal
+            genkey [-size=160] <priv-key-file>
+            encrypt <pub-key-file> <in-file> <out-file>
+            decrypt <priv-key-file> <in-file> <out-file>
+            sign <priv-key-file> <file>
+            check <pub-key-file> <file>
+`[1:])
+	os.Exit(255)
 }
 
 func aes() {
@@ -19,7 +34,6 @@ func aes() {
 		fs.Parse(os.Args[3:])
 		if fs.Arg(0) == "" {
 			usage()
-			os.Exit(1)
 		}
 
 		fmt.Printf("Géneration de la clé de %d bits... ", *keySize)
@@ -34,7 +48,6 @@ func aes() {
 
 		if fs.Arg(0) == "" || fs.Arg(1) == "" || fs.Arg(2) == "" {
 			usage()
-			os.Exit(1)
 		}
 
 		keyPath, dataPath, cipherPath := fs.Arg(0), fs.Arg(1), fs.Arg(2)
@@ -50,7 +63,6 @@ func aes() {
 
 		if fs.Arg(0) == "" || fs.Arg(1) == "" {
 			usage()
-			os.Exit(1)
 		}
 
 		keyPath, cipherPath, dataPath := fs.Arg(0), fs.Arg(1), fs.Arg(2)
@@ -66,7 +78,6 @@ func aes() {
 		}
 	default:
 		usage()
-		os.Exit(1)
 	}
 
 }
