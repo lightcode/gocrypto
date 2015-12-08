@@ -51,16 +51,16 @@ func invShiftRows(b []byte) {
 
 // Effectue la multiplication dans le corps de Rijndael
 func gmul(a, b byte) byte {
-	var p byte = 0
-	var hi_bit_set byte
+	var p byte
+	var hiBitSet byte
 
 	for i := 0; i < 8; i++ {
 		if (b & 1) != 0 {
 			p ^= a
 		}
-		hi_bit_set = a & 0x80
+		hiBitSet = a & 0x80
 		a <<= 1
-		if hi_bit_set != 0 {
+		if hiBitSet != 0 {
 			a ^= 0x1b // x^8 + x^4 + x^3 + x + 1
 		}
 		b >>= 1
@@ -121,7 +121,7 @@ func encryptBlock(block, key []byte) {
 		panic(fmt.Sprintf("Wrong size of key (%d bits)", len(key)*8))
 	}
 
-	// Calcule le nombre de colonne de la matrice
+	// Calcul le nombre de colonne de la matrice
 	nk := len(key) / 4
 
 	// Cacule le nombre de tournées nr
@@ -167,7 +167,7 @@ func decryptBlock(block, key []byte) {
 		panic(fmt.Sprintf("Wrong size of key (%d bits)", len(key)*8))
 	}
 
-	// Calcule le nombre de colonne de la matrice
+	// Calcul le nombre de colonne de la matrice
 	nk := len(key) / 4
 
 	// Cacule le nombre de tournées nr
@@ -199,8 +199,8 @@ func subKey(ke []byte, i, keySize int) []byte {
 	return ke[i*keySize : (i+1)*keySize]
 }
 
-// Chiffre avec l'agorithme AES un tableau de byte
-// avec une clé k de taille 128, 192 ou 256 bits
+// AESEncrypt chiffre avec l'agorithme AES un tableau de
+// byte avec une clé k de taille 128, 192 ou 256 bits
 func AESEncrypt(data, k []byte) []byte {
 	data = addPadding(data, 128)
 	r := make([]byte, len(data))
@@ -216,8 +216,8 @@ func AESEncrypt(data, k []byte) []byte {
 	return r
 }
 
-// Déchiffre avec l'agorithme AES un tableau de byte
-// avec une clé k de taille 128, 192 ou 256 bits
+// AESDecrypt déchiffre avec l'agorithme AES un tableau
+// de byte avec une clé k de taille 128, 192 ou 256 bits
 func AESDecrypt(cipher, k []byte) []byte {
 	r := make([]byte, len(cipher))
 
@@ -234,6 +234,7 @@ func AESDecrypt(cipher, k []byte) []byte {
 	return r
 }
 
+// GenerateAESKey génère une clé AES de size bytes
 func GenerateAESKey(size int) []byte {
 	return randomBytes(size)
 }

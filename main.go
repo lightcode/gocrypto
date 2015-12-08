@@ -27,7 +27,7 @@ func aes() {
 		fmt.Println("Terminé")
 
 		filename := fs.Arg(0)
-		WriteBytes(key, filename)
+		writeBytes(key, filename)
 	case "encrypt":
 		fs := flag.NewFlagSet("encrypt", flag.ExitOnError)
 		fs.Parse(os.Args[3:])
@@ -39,11 +39,11 @@ func aes() {
 
 		keyPath, dataPath, cipherPath := fs.Arg(0), fs.Arg(1), fs.Arg(2)
 
-		data := ReadBytes(dataPath)
-		key := ReadBytes(keyPath)
+		data := readBytes(dataPath)
+		key := readBytes(keyPath)
 
 		c := AESEncrypt(data, key)
-		WriteBytes(c, cipherPath)
+		writeBytes(c, cipherPath)
 	case "decrypt":
 		fs := flag.NewFlagSet("decrypt", flag.ExitOnError)
 		fs.Parse(os.Args[3:])
@@ -55,14 +55,14 @@ func aes() {
 
 		keyPath, cipherPath, dataPath := fs.Arg(0), fs.Arg(1), fs.Arg(2)
 
-		cipher := ReadBytes(cipherPath)
-		key := ReadBytes(keyPath)
+		cipher := readBytes(cipherPath)
+		key := readBytes(keyPath)
 
 		d := AESDecrypt(cipher, key)
 		if dataPath == "" {
 			os.Stdout.Write(d)
 		} else {
-			WriteBytes(d, dataPath)
+			writeBytes(d, dataPath)
 		}
 	default:
 		usage()
@@ -92,14 +92,5 @@ func cli() {
 }
 
 func main() {
-	// cli()
-
-	pair := GenerateElgamalKeyPair(160)
-	m := []byte{125, 14, 46, 78, 79}
-	fmt.Println(m)
-
-	d := ElgamalEncrypt(&pair.ElgamalPublicKey, m)
-
-	message := ElgamalDecrypt(pair, d)
-	fmt.Println(message)
+	cli()
 }

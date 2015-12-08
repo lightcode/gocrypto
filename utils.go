@@ -12,18 +12,6 @@ import (
 
 var seed = mrand.New(mrand.NewSource(time.Now().UnixNano()))
 
-func CompareSlice(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 // Renvoie un nombre de type "big.Int" compris entre [min,max]
 func randRange(min, max *big.Int) *big.Int {
 	n := new(big.Int).Rand(seed, new(big.Int).Sub(max, min))
@@ -47,7 +35,7 @@ func randomBigInt(size int) *big.Int {
 	return b
 }
 
-func WriteBytes(b []byte, path string) {
+func writeBytes(b []byte, path string) {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	defer f.Close()
 
@@ -59,7 +47,7 @@ func WriteBytes(b []byte, path string) {
 	f.Write(b)
 }
 
-func ReadBytes(path string) []byte {
+func readBytes(path string) []byte {
 	b, err := ioutil.ReadFile(path)
 
 	if err != nil {

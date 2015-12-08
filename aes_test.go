@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -11,13 +12,13 @@ func TestSubBytes(t *testing.T) {
 
 	subBytes(a)
 
-	if CompareSlice(a, b) {
+	if bytes.Equal(a, b) {
 		t.Error("La fonction subBytes n'a rien changé")
 	}
 
 	invSubBytes(a)
 
-	if !CompareSlice(a, b) {
+	if !bytes.Equal(a, b) {
 		t.Error("la fonction subBytes n'est pas inversible")
 	}
 }
@@ -29,13 +30,13 @@ func TestShiftRows(t *testing.T) {
 
 	shiftRows(a)
 
-	if CompareSlice(a, b) {
+	if bytes.Equal(a, b) {
 		t.Error("La fonction shiftRows n'a rien changé")
 	}
 
 	invShiftRows(a)
 
-	if !CompareSlice(a, b) {
+	if !bytes.Equal(a, b) {
 		t.Error("la fonction shiftRows n'est pas inversible")
 	}
 }
@@ -47,13 +48,13 @@ func TestMixColumns(t *testing.T) {
 
 	mixColumns(a)
 
-	if CompareSlice(a, b) {
+	if bytes.Equal(a, b) {
 		t.Error("La fonction mixColumns n'a rien changé")
 	}
 
 	invMixColumns(a)
 
-	if !CompareSlice(a, b) {
+	if !bytes.Equal(a, b) {
 		t.Error("la fonction mixColumns n'est pas inversible")
 	}
 }
@@ -64,7 +65,7 @@ func TestEncryptData(t *testing.T) {
 	C := AESEncrypt(plain, k)
 	m := AESDecrypt(C, k)
 
-	if !CompareSlice(m, plain) {
+	if !bytes.Equal(m, plain) {
 		t.Error("Le texte n'a pas été correctement déchiffrée")
 	}
 }
@@ -78,13 +79,13 @@ func TestEncryptBlock(t *testing.T) {
 
 	encryptBlock(a, k)
 
-	if CompareSlice(a, b) {
+	if bytes.Equal(a, b) {
 		t.Error("La fonction encryptBlock n'a rien changé")
 	}
 
 	decryptBlock(a, k)
 
-	if !CompareSlice(a, b) {
+	if !bytes.Equal(a, b) {
 		t.Error("la fonction encryptBlock n'est pas inversible")
 	}
 }

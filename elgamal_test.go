@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 func TestElgamalEncryption(t *testing.T) {
 	pair := GenerateElgamalKeyPair(160)
@@ -11,7 +14,7 @@ func TestElgamalEncryption(t *testing.T) {
 
 	m2 := ElgamalDecrypt(pair, c)
 
-	if !CompareSlice(m1, m2) {
+	if !bytes.Equal(m1, m2) {
 		t.Error("Le chiffrement/déchiffrement Elgamal a échoué")
 	}
 }

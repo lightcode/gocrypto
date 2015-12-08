@@ -122,7 +122,7 @@ func elgamalEncryptBytes(pubkey *ElgamalPublicKey, plaintext []byte) (c1bytes, c
 	// On choisit aléatoirement un nombre entre 1 et (q-1)
 	y := randRange(N_ONE, new(big.Int).Sub(pubkey.Q, N_ONE))
 
-	// Calcule de la première partie du message chiffré
+	// Calcul de la première partie du message chiffré
 	c1 := new(big.Int).Exp(pubkey.G, y, p)
 
 	// Calcul de "s" le secret partagé
@@ -142,7 +142,7 @@ func elgamalEncryptBytes(pubkey *ElgamalPublicKey, plaintext []byte) (c1bytes, c
 		// Traduit le bloc en un nombre dans Zp
 		m := new(big.Int).SetBytes(plaintext[i*plainBlockSize : (i+1)*plainBlockSize])
 
-		// Calcule de c2 = m * s
+		// Calcul de c2 = m * s
 		c2 := new(big.Int).Mul(m, s)
 		c2.Mod(c2, p)
 
@@ -171,7 +171,7 @@ func elgamalDecryptBytes(keys *ElgamalKeyPair, c1bytes, c2bytes []byte) (plainte
 	// Calcul du secret partagé
 	s := new(big.Int).Exp(c1, keys.X, p)
 
-	// Calcul de l'inverse de s
+	// Calcul de l'inverse de s dans Zp
 	sInverse := new(big.Int).ModInverse(s, p)
 
 	// Chiffrement du message bloc par bloc
@@ -179,12 +179,12 @@ func elgamalDecryptBytes(keys *ElgamalKeyPair, c1bytes, c2bytes []byte) (plainte
 		// Lecture d'un block et conversion en entier dans Zp
 		c2 := new(big.Int).SetBytes(c2bytes[i*cipherBlockSize : (i+1)*cipherBlockSize])
 
-		// Calcul de l'inverse de c2 dans Zp
-		mPrime := new(big.Int).Mul(c2, sInverse)
-		mPrime.Mod(mPrime, p)
+		// Calcul de c2 * sInverse dans Zp
+		m := new(big.Int).Mul(c2, sInverse)
+		m.Mod(m, p)
 
 		// Copie du résultat dans le tableau de sortie
-		copy(plaintext[i*plainBlockSize:(i+1)*plainBlockSize], mPrime.Bytes())
+		copy(plaintext[i*plainBlockSize:(i+1)*plainBlockSize], m.Bytes())
 	}
 
 	return plaintext
@@ -196,10 +196,13 @@ func ElgamalDecrypt(keys *ElgamalKeyPair, ciphertext []byte) (plaintext []byte) 
 	// Récupère la taille de c1
 	c1size := ciphertext[len(ciphertext)-1]
 
+	// Récupère c1 et c2 sous la forme de tableau d'octets
 	c1bytes, c2bytes := ciphertext[0:c1size], ciphertext[c1size:len(ciphertext)-1]
 
+	// Déchiffre le message chiffré
 	plaintext = elgamalDecryptBytes(keys, c1bytes, c2bytes)
 
+	// Supprime le padding
 	plaintext = removePadding(plaintext)
 
 	return plaintext
