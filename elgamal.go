@@ -1,14 +1,15 @@
 package main
 
-import (
-	"math/big"
-)
+import "math/big"
+
+const elgamalBlockSize = 128 / 8
 
 // ElgamalPublicKey représente une clé publique
 type ElgamalPublicKey struct {
-	Q *big.Int // Q est l'ordre du corps Zp
-	G *big.Int // G est le générateur du corps Zp
-	H *big.Int // H = G^X (où x est la clé privée)
+	KeySize int      // Taille de la clé
+	Q       *big.Int // Q est l'ordre du corps Zp
+	G       *big.Int // G est le générateur du corps Zp
+	H       *big.Int // H = G^X (où x est la clé privée)
 }
 
 // ElgamalPrivateKey représente une clé privée
@@ -68,8 +69,7 @@ func generateCyclicGroup(size int) (p, g *big.Int) {
 
 // Renvoie vrai si g est générateur du Groupe Zp
 func isGenerator(p, g *big.Int, k []*big.Int) bool {
-	one := big.NewInt(1)
-	pMinus1 := new(big.Int).Sub(p, one)
+	pMinus1 := new(big.Int).Sub(p, N_ONE)
 
 	if new(big.Int).Exp(g, pMinus1, p).Cmp(N_ONE) != 0 {
 		return false
@@ -110,7 +110,116 @@ func GenerateElgamalKeyPair(size int) *ElgamalKeyPair {
 	h := new(big.Int).Exp(g, x, p)
 
 	return &ElgamalKeyPair{
-		ElgamalPublicKey{G: g, Q: q, H: h},
+		ElgamalPublicKey{G: g, Q: q, H: h, KeySize: size},
 		ElgamalPrivateKey{X: x},
 	}
+}
+
+func elgamalEncryptBytes(pubkey *ElgamalPublicKey, plaintext []byte) (c1bytes, c2bytes []byte) {
+	// Calcul du nombre de d'élément de Zp
+	p := new(big.Int).Add(pubkey.Q, N_ONE)
+
+	// On choisit aléatoirement un nombre entre 1 et (q-1)
+	y := randRange(N_ONE, new(big.Int).Sub(pubkey.Q, N_ONE))
+
+	// Calcule de la première partie du message chiffré
+	c1 := new(big.Int).Exp(pubkey.G, y, p)
+
+	// Calcul de "s" le secret partagé
+	s := new(big.Int).Exp(pubkey.H, y, p)
+
+	// Taille du bloc en mots de 8 bits
+	plainBlockSize := elgamalBlockSize
+	cipherBlockSize := pubkey.KeySize / 8
+
+	// Calcul du nombre de bloc à chiffrer
+	nblock := len(plaintext) / plainBlockSize
+
+	c2bytes = make([]byte, cipherBlockSize*nblock)
+
+	// Chiffrement du message bloc par bloc
+	for i := 0; i < nblock; i++ {
+		// Traduit le bloc en un nombre dans Zp
+		m := new(big.Int).SetBytes(plaintext[i*plainBlockSize : (i+1)*plainBlockSize])
+
+		// Calcule de c2 = m * s
+		c2 := new(big.Int).Mul(m, s)
+		c2.Mod(c2, p)
+
+		// Copie de c2 dans le chiffré final
+		copy(c2bytes[i*cipherBlockSize:(i+1)*cipherBlockSize], c2.Bytes())
+	}
+
+	return c1.Bytes(), c2bytes
+}
+
+func elgamalDecryptBytes(keys *ElgamalKeyPair, c1bytes, c2bytes []byte) (plaintext []byte) {
+	c1 := new(big.Int).SetBytes(c1bytes)
+
+	// Taille du bloc en mots de 8 bits
+	plainBlockSize := elgamalBlockSize
+	cipherBlockSize := keys.KeySize / 8
+
+	// Calcul du nombre de bloc
+	nblock := len(c2bytes) / cipherBlockSize
+
+	plaintext = make([]byte, nblock*plainBlockSize)
+
+	// Calcul du nombre de d'élément de Zp
+	p := new(big.Int).Add(keys.Q, N_ONE)
+
+	// Calcul du secret partagé
+	s := new(big.Int).Exp(c1, keys.X, p)
+
+	// Calcul de l'inverse de s
+	sInverse := new(big.Int).ModInverse(s, p)
+
+	// Chiffrement du message bloc par bloc
+	for i := 0; i < nblock; i++ {
+		// Lecture d'un block et conversion en entier dans Zp
+		c2 := new(big.Int).SetBytes(c2bytes[i*cipherBlockSize : (i+1)*cipherBlockSize])
+
+		// Calcul de l'inverse de c2 dans Zp
+		mPrime := new(big.Int).Mul(c2, sInverse)
+		mPrime.Mod(mPrime, p)
+
+		// Copie du résultat dans le tableau de sortie
+		copy(plaintext[i*plainBlockSize:(i+1)*plainBlockSize], mPrime.Bytes())
+	}
+
+	return plaintext
+}
+
+// ElgamalDecrypt déchiffre les messages chiffrés avec la
+// fonction ElgamalEncrypt
+func ElgamalDecrypt(keys *ElgamalKeyPair, ciphertext []byte) (plaintext []byte) {
+	// Récupère la taille de c1
+	c1size := ciphertext[len(ciphertext)-1]
+
+	c1bytes, c2bytes := ciphertext[0:c1size], ciphertext[c1size:len(ciphertext)-1]
+
+	plaintext = elgamalDecryptBytes(keys, c1bytes, c2bytes)
+
+	plaintext = removePadding(plaintext)
+
+	return plaintext
+}
+
+// ElgamalEncrypt chiffre les messages d'une taille quelconque et renvoie le
+// résultat sous la forme de bytes représentant c1 et c2 :
+// ciphertext = c1 | c2 | len(c1)
+func ElgamalEncrypt(pubkey *ElgamalPublicKey, plaintext []byte) (ciphertext []byte) {
+	// On ajoute un padding au message en clair pour que sa taille soit un multiple
+	// de la taille de la clé
+	plaintext = addPadding(plaintext, elgamalBlockSize*8)
+
+	c1, c2 := elgamalEncryptBytes(pubkey, plaintext)
+
+	// Concataine la taille de c1 en mot de 8 bits, c1 et c2 dans un même tableau
+	ciphertext = make([]byte, len(c1)+len(c2)+1)
+	copy(ciphertext[0:len(c1)], c1)
+	copy(ciphertext[len(c1):len(ciphertext)-1], c2)
+	ciphertext[len(ciphertext)-1] = byte(len(c1))
+
+	return ciphertext
 }

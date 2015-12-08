@@ -93,5 +93,13 @@ func cli() {
 
 func main() {
 	// cli()
-	fmt.Println(GenerateElgamalKeyPair(160))
+
+	pair := GenerateElgamalKeyPair(160)
+	m := []byte{125, 14, 46, 78, 79}
+	fmt.Println(m)
+
+	d := ElgamalEncrypt(&pair.ElgamalPublicKey, m)
+
+	message := ElgamalDecrypt(pair, d)
+	fmt.Println(message)
 }

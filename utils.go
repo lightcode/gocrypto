@@ -69,3 +69,33 @@ func ReadBytes(path string) []byte {
 
 	return b
 }
+
+// Ajoute un padding sur le texte clair pour que sa
+// longueur soit un multiple de bsize bits
+func addPadding(b []byte, bsize int) []byte {
+	bsize = bsize / 8
+
+	newSize := ((len(b) / bsize) + 1) * bsize
+
+	r := make([]byte, newSize)
+
+	for i := range b {
+		r[i] = b[i]
+	}
+
+	copy(r[len(b):], randomBytes(newSize-len(b)))
+
+	r[len(r)-1] = byte(len(r) - len(b) - 1)
+
+	return r
+}
+
+// Retire le padding ajouté par la fonction addPadding
+func removePadding(b []byte) []byte {
+	r := make([]byte, len(b)-int(b[len(b)-1])-1)
+
+	for i := range r {
+		r[i] = b[i]
+	}
+	return r
+}

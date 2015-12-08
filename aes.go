@@ -199,34 +199,10 @@ func subKey(ke []byte, i, keySize int) []byte {
 	return ke[i*keySize : (i+1)*keySize]
 }
 
-// Ajoute un padding sur le texte clair pour que sa longueur
-// soit un multiple de 128 bits (16 octets)
-func addPadding(b []byte) []byte {
-	r := make([]byte, ((len(b)/16)+1)*16)
-
-	for i := range b {
-		r[i] = b[i]
-	}
-
-	r[len(r)-1] = byte(len(r) - len(b) - 1)
-
-	return r
-}
-
-// Retire le padding ajouté par la fonction addPadding
-func removePadding(b []byte) []byte {
-	r := make([]byte, len(b)-int(b[len(b)-1])-1)
-
-	for i := range r {
-		r[i] = b[i]
-	}
-	return r
-}
-
 // Chiffre avec l'agorithme AES un tableau de byte
 // avec une clé k de taille 128, 192 ou 256 bits
 func AESEncrypt(data, k []byte) []byte {
-	data = addPadding(data)
+	data = addPadding(data, 128)
 	r := make([]byte, len(data))
 
 	for i := 0; i < (len(data) / 16); i++ {
