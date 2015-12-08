@@ -38,8 +38,8 @@ func generateCyclicGroup(size int) (p, g *big.Int) {
 		n = generateRandomPrime(size / 8)
 
 		// p = 2n + 1
-		pMinus1.Mul(n, N_TWO)
-		p.Add(pMinus1, N_ONE)
+		pMinus1.Mul(n, big2)
+		p.Add(pMinus1, big1)
 
 		// p < pmin
 		if p.Cmp(pmin) == -1 {
@@ -53,15 +53,15 @@ func generateCyclicGroup(size int) (p, g *big.Int) {
 
 		// On cherche un générateur g dans Zp
 		for {
-			g = randRange(N_TWO, pMinus1)
+			g = randRange(big2, pMinus1)
 
 			// Si g^(p-1) != 1 alors g n'est pas générateur
-			if T.Exp(g, pMinus1, p).Cmp(N_ONE) != 0 {
+			if T.Exp(g, pMinus1, p).Cmp(big1) != 0 {
 				continue
 			}
 
 			// Si g^2 == 1 alors g n'est pas générateur
-			if T.Exp(g, N_TWO, p).Cmp(N_ONE) == 0 {
+			if T.Exp(g, big2, p).Cmp(big1) == 0 {
 				continue
 			}
 
@@ -75,10 +75,10 @@ func GenerateElgamalKeys(size int) *ElgamalPrivateKey {
 	p, g := generateCyclicGroup(size)
 
 	// Calcul de l'ordre de Zp
-	q := new(big.Int).Sub(p, N_ONE)
+	q := new(big.Int).Sub(p, big1)
 
 	// Calcul de x
-	x := randRange(N_ONE, new(big.Int).Sub(q, N_ONE))
+	x := randRange(big1, new(big.Int).Sub(q, big1))
 
 	// Calcul de h
 	h := new(big.Int).Exp(g, x, p)
@@ -96,13 +96,13 @@ func elgamalEncryptBytes(pubkey *ElgamalPublicKey, plaintext []byte) (c1bytes, c
 	)
 
 	// Calcul du nombre de d'élément de Zp
-	p := new(big.Int).Add(pubkey.Q, N_ONE)
+	p := new(big.Int).Add(pubkey.Q, big1)
 
 	// Calcul de la taille de p en octets
 	pLen := (p.BitLen() + 7) / 8
 
 	// On choisit aléatoirement un nombre entre 1 et (q-1)
-	y := randRange(N_ONE, new(big.Int).Sub(pubkey.Q, N_ONE))
+	y := randRange(big1, new(big.Int).Sub(pubkey.Q, big1))
 
 	// Calcul de la première partie du message chiffré
 	c1 := new(big.Int).Exp(pubkey.G, y, p)
@@ -149,7 +149,7 @@ func elgamalDecryptBytes(priv *ElgamalPrivateKey, c1bytes, c2bytes []byte) (plai
 	c1 := new(big.Int).SetBytes(c1bytes)
 
 	// Calcul du nombre de d'élément de Zp
-	p := new(big.Int).Add(priv.Q, N_ONE)
+	p := new(big.Int).Add(priv.Q, big1)
 
 	// Calcul de la taille de p en octets
 	pLen := (p.BitLen() + 7) / 8

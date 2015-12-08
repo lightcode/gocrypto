@@ -105,6 +105,8 @@ func keyExpansion(key []byte, nr int) []byte {
 
 // Chiffre un block de 128 bits de text en clair
 func encryptBlock(block, key []byte) {
+	var currentKey []byte
+
 	// Taille de la clé en octet
 	keySize := len(key)
 
@@ -138,7 +140,7 @@ func encryptBlock(block, key []byte) {
 		subBytes(block)
 		shiftRows(block)
 		mixColumns(block)
-		currentKey := subKey(roundKeys, i, keySize)
+		currentKey = subKey(roundKeys, i, keySize)
 		addRoundKey(block, currentKey)
 	}
 
@@ -151,6 +153,8 @@ func encryptBlock(block, key []byte) {
 
 // Déchiffre un block de 128 bits
 func decryptBlock(block, key []byte) {
+	var currentKey []byte
+
 	// Taille de la clé en octet
 	keySize := len(key)
 
@@ -183,7 +187,7 @@ func decryptBlock(block, key []byte) {
 	invShiftRows(block)
 
 	for i := (nr - 1); i > 0; i-- {
-		currentKey := subKey(roundKeys, i, keySize)
+		currentKey = subKey(roundKeys, i, keySize)
 		addRoundKey(block, currentKey)
 		invMixColumns(block)
 		invShiftRows(block)
@@ -202,11 +206,13 @@ func subKey(ke []byte, i, keySize int) []byte {
 // AESEncrypt chiffre avec l'agorithme AES un tableau de
 // byte avec une clé k de taille 128, 192 ou 256 bits
 func AESEncrypt(data, k []byte) []byte {
+	var block []byte
+
 	data = addPadding(data, 128)
 	r := make([]byte, len(data))
 
 	for i := 0; i < (len(data) / 16); i++ {
-		block := data[i*16 : (i+1)*16]
+		block = data[i*16 : (i+1)*16]
 		encryptBlock(block, k)
 		for j := range block {
 			r[(i*16)+j] = block[j]
@@ -219,10 +225,12 @@ func AESEncrypt(data, k []byte) []byte {
 // AESDecrypt déchiffre avec l'agorithme AES un tableau
 // de byte avec une clé k de taille 128, 192 ou 256 bits
 func AESDecrypt(cipher, k []byte) []byte {
+	var block []byte
+
 	r := make([]byte, len(cipher))
 
 	for i := 0; i < (len(cipher) / 16); i++ {
-		block := cipher[i*16 : (i+1)*16]
+		block = cipher[i*16 : (i+1)*16]
 		decryptBlock(block, k)
 		for j := range block {
 			r[(i*16)+j] = block[j]

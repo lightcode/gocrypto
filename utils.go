@@ -23,23 +23,23 @@ func randRange(min, max *big.Int) *big.Int {
 func randomBytes(n int) []byte {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
-		fmt.Println("error:", err)
+		fmt.Println("Erreur :", err)
 		return nil
 	}
 	return b
 }
 
 func randomBigInt(size int) *big.Int {
-	b := new(big.Int)
-	b.SetBytes(randomBytes(size))
+	b := new(big.Int).SetBytes(randomBytes(size))
 	return b
 }
 
 func writeBytes(b []byte, path string) {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
-	defer f.Close()
 
-	if err != nil {
+	if err == nil {
+		defer f.Close()
+	} else {
 		fmt.Println("Erreur lors de l'ouverture du fichier:", err)
 		os.Exit(1)
 	}
@@ -61,7 +61,7 @@ func readBytes(path string) []byte {
 // Ajoute un padding sur le texte clair pour que sa
 // longueur soit un multiple de bsize bits
 func addPadding(b []byte, bsize int) []byte {
-	bsize = bsize / 8
+	bsize = (bsize + 7) / 8
 
 	newSize := ((len(b) / bsize) + 1) * bsize
 
