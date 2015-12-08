@@ -12,15 +12,11 @@ type ElgamalPublicKey struct {
 	H       *big.Int // H = G^X (où x est la clé privée)
 }
 
-// ElgamalPrivateKey représente une clé privée
+// ElgamalPrivateKey représente une paire de clés
 type ElgamalPrivateKey struct {
-	X *big.Int // X est généré aléatoirement lors de la création des clés
-}
-
-// ElgamalKeyPair représente un paire de clés (publique, privée)
-type ElgamalKeyPair struct {
 	ElgamalPublicKey
-	ElgamalPrivateKey
+
+	X *big.Int // X est généré aléatoirement lors de la création des clés
 }
 
 // Teste si le nombre x peut être mis sous la forme
@@ -105,8 +101,8 @@ func findGenerator(p *big.Int, f []*big.Int) *big.Int {
 	}
 }
 
-// GenerateElgamalKeyPair génère une paire de clés et la renvoie
-func GenerateElgamalKeyPair(size int) *ElgamalKeyPair {
+// GenerateElgamalKeys génère une paire de clés et la renvoie
+func GenerateElgamalKeys(size int) *ElgamalPrivateKey {
 	p, g := generateCyclicGroup(size)
 
 	// Calcul de l'ordre de Zp
@@ -118,9 +114,9 @@ func GenerateElgamalKeyPair(size int) *ElgamalKeyPair {
 	// Calcul de h
 	h := new(big.Int).Exp(g, x, p)
 
-	return &ElgamalKeyPair{
-		ElgamalPublicKey{G: g, Q: q, H: h, KeySize: size},
-		ElgamalPrivateKey{X: x},
+	return &ElgamalPrivateKey{
+		ElgamalPublicKey: ElgamalPublicKey{G: g, Q: q, H: h, KeySize: size},
+		X:                x,
 	}
 }
 
@@ -162,12 +158,12 @@ func elgamalEncryptBytes(pubkey *ElgamalPublicKey, plaintext []byte) (c1bytes, c
 	return c1.Bytes(), c2bytes
 }
 
-func elgamalDecryptBytes(keys *ElgamalKeyPair, c1bytes, c2bytes []byte) (plaintext []byte) {
+func elgamalDecryptBytes(priv *ElgamalPrivateKey, c1bytes, c2bytes []byte) (plaintext []byte) {
 	c1 := new(big.Int).SetBytes(c1bytes)
 
 	// Taille du bloc en mots de 8 bits
 	plainBlockSize := elgamalBlockSize
-	cipherBlockSize := keys.KeySize / 8
+	cipherBlockSize := priv.KeySize / 8
 
 	// Calcul du nombre de bloc
 	nblock := len(c2bytes) / cipherBlockSize
@@ -175,10 +171,10 @@ func elgamalDecryptBytes(keys *ElgamalKeyPair, c1bytes, c2bytes []byte) (plainte
 	plaintext = make([]byte, nblock*plainBlockSize)
 
 	// Calcul du nombre de d'élément de Zp
-	p := new(big.Int).Add(keys.Q, N_ONE)
+	p := new(big.Int).Add(priv.Q, N_ONE)
 
 	// Calcul du secret partagé
-	s := new(big.Int).Exp(c1, keys.X, p)
+	s := new(big.Int).Exp(c1, priv.X, p)
 
 	// Calcul de l'inverse de s dans Zp
 	sInverse := new(big.Int).ModInverse(s, p)
@@ -201,7 +197,7 @@ func elgamalDecryptBytes(keys *ElgamalKeyPair, c1bytes, c2bytes []byte) (plainte
 
 // ElgamalDecrypt déchiffre les messages chiffrés avec la
 // fonction ElgamalEncrypt
-func ElgamalDecrypt(keys *ElgamalKeyPair, ciphertext []byte) (plaintext []byte) {
+func ElgamalDecrypt(priv *ElgamalPrivateKey, ciphertext []byte) (plaintext []byte) {
 	// Récupère la taille de c1
 	c1size := ciphertext[len(ciphertext)-1]
 
@@ -209,7 +205,7 @@ func ElgamalDecrypt(keys *ElgamalKeyPair, ciphertext []byte) (plaintext []byte) 
 	c1bytes, c2bytes := ciphertext[0:c1size], ciphertext[c1size:len(ciphertext)-1]
 
 	// Déchiffre le message chiffré
-	plaintext = elgamalDecryptBytes(keys, c1bytes, c2bytes)
+	plaintext = elgamalDecryptBytes(priv, c1bytes, c2bytes)
 
 	// Supprime le padding
 	plaintext = removePadding(plaintext)
