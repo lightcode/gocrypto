@@ -2,7 +2,9 @@ package main
 
 import "math/big"
 
-const elgamalBlockSize = 128 / 8
+// Taille mininale de p pour éviter de couper
+// les messages en trop petite taille
+const elgamalMinSize = 128
 
 // ElgamalPublicKey représente une clé publique
 type ElgamalPublicKey struct {
@@ -18,84 +20,52 @@ type ElgamalPrivateKey struct {
 	X *big.Int // X est généré aléatoirement lors de la création des clés
 }
 
-// Teste si le nombre x peut être mis sous la forme
-// x = 2 * m   où m est premier
-// Revoie :
-//    - (décomposition, true) si la factorisation a fonctionné
-//    - ([], false) si la factorisation n'a pas fonctionné
-func factorize(x *big.Int) ([]*big.Int, bool) {
-	var res []*big.Int
-	T := new(big.Int)
-	n := new(big.Int).Set(x)
-
-	// Vérifie si n est divisible par 2
-	if T.Mod(n, N_TWO).Cmp(N_ZERO) == 0 {
-		n.Div(n, N_TWO)
-
-		if n.Bit(0) == 0 {
-			return res, false
-		}
-
-		if probablyPrime(n, 25) {
-			res = append(res, new(big.Int).Set(n), N_TWO)
-			return res, true
-		}
-	}
-
-	return res, false
-}
-
 // Génère un groupe cyclique Zp, trouve un générateur g et renvoie (p, g)
 // p est un nombre entier de size bits (size est multiple de 8)
 // Le nombre p est également supérieur à la taille maximale d'un message + 1
 func generateCyclicGroup(size int) (p, g *big.Int) {
-	T := new(big.Int)
-	pmin := new(big.Int)
-	pmin.SetBit(pmin, (elgamalBlockSize*8)+1, 1)
+	var (
+		n       = new(big.Int)
+		T       = new(big.Int)
+		pMinus1 = new(big.Int)
+		pmin    = new(big.Int)
+	)
+
+	p = new(big.Int)
+	pmin.SetBit(pmin, elgamalMinSize+1, 1)
 
 	for {
-		p = generateRandomPrime(size / 8)
+		n = generateRandomPrime(size / 8)
+
+		// p = 2n + 1
+		pMinus1.Mul(n, N_TWO)
+		p.Add(pMinus1, N_ONE)
 
 		// p < pmin
 		if p.Cmp(pmin) == -1 {
 			continue
 		}
 
-		f, e := factorize(T.Sub(p, N_ONE))
-		if !e {
+		// p n'est pas premier
+		if !probablyPrime(p, 25) {
 			continue
 		}
-		g = findGenerator(p, f)
-		return p, g
-	}
 
-}
+		// On cherche un générateur g dans Zp
+		for {
+			g = randRange(N_TWO, pMinus1)
 
-// Renvoie vrai si g est générateur du Groupe Zp
-func isGenerator(p, g *big.Int, k []*big.Int) bool {
-	pMinus1 := new(big.Int).Sub(p, N_ONE)
+			// Si g^(p-1) != 1 alors g n'est pas générateur
+			if T.Exp(g, pMinus1, p).Cmp(N_ONE) != 0 {
+				continue
+			}
 
-	if new(big.Int).Exp(g, pMinus1, p).Cmp(N_ONE) != 0 {
-		return false
-	}
+			// Si g^2 == 1 alors g n'est pas générateur
+			if T.Exp(g, N_TWO, p).Cmp(N_ONE) == 0 {
+				continue
+			}
 
-	for _, n := range k {
-		if new(big.Int).Exp(g, n, p).Cmp(N_ONE) == 0 {
-			return false
-		}
-	}
-	return true
-}
-
-// Trouve un nombre générateur aléatoire dans Zp
-func findGenerator(p *big.Int, f []*big.Int) *big.Int {
-	T := new(big.Int)
-
-	for {
-		// Génère un nombre aléatoire compris entre 2 et p-1
-		g := randRange(N_TWO, T.Sub(p, N_ONE))
-		if isGenerator(p, g, f) {
-			return g
+			return p, g
 		}
 	}
 }
@@ -162,7 +132,9 @@ func elgamalEncryptBytes(pubkey *ElgamalPublicKey, plaintext []byte) (c1bytes, c
 		c2.Mod(c2, p)
 
 		// Copie de c2 dans le chiffré final
-		copy(c2bytes[i*cipherBlockSize:(i+1)*cipherBlockSize], c2.Bytes())
+		c2b := c2.Bytes()
+		offset := cipherBlockSize - len(c2b)
+		copy(c2bytes[(i*cipherBlockSize)+offset:(i+1)*cipherBlockSize], c2b)
 	}
 
 	return c1.Bytes(), c2bytes
@@ -206,7 +178,9 @@ func elgamalDecryptBytes(priv *ElgamalPrivateKey, c1bytes, c2bytes []byte) (plai
 		m.Mod(m, p)
 
 		// Copie du résultat dans le tableau de sortie
-		copy(plaintext[i*plainBlockSize:(i+1)*plainBlockSize], m.Bytes())
+		mb := m.Bytes()
+		off := plainBlockSize - len(mb)
+		copy(plaintext[i*plainBlockSize+off:(i+1)*plainBlockSize], mb)
 	}
 
 	// Supprime le padding
