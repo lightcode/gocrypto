@@ -5,11 +5,11 @@ import (
 	"testing"
 )
 
-func TestElgamalEncryption(t *testing.T) {
-	keys := GenerateElgamalKeys(160)
+var keys = GenerateElgamalKeys(160)
 
+func TestElgamalEncryption(t *testing.T) {
 	m := make([][]byte, 2)
-	m[0] = randomBytes(10000 / 8)
+	m[0] = randomBytes(1000)
 	m[1] = []byte{0, 0, 54, 89, 75, 31, 0, 0, 0}
 
 	for _, m1 := range m {
@@ -24,7 +24,7 @@ func TestElgamalEncryption(t *testing.T) {
 }
 
 func TestElgamalKeyStorage(t *testing.T) {
-	priv := GenerateElgamalKeys(160)
+	priv := keys
 	pub := priv.ElgamalPublicKey
 
 	// Test avec la clé publique
@@ -38,5 +38,14 @@ func TestElgamalKeyStorage(t *testing.T) {
 	if tpriv.Q.Cmp(priv.Q) != 0 || tpriv.H.Cmp(priv.H) != 0 || tpriv.G.Cmp(priv.G) != 0 || tpriv.X.Cmp(priv.X) != 0 {
 		t.Error("Les deux clés privées ne sont pas égales.")
 	}
+}
 
+func TestSignature(t *testing.T) {
+	data := randomBytes(1000)
+
+	signedData := ElgamalSign(keys, data)
+
+	if !ElgamalCheck(&keys.ElgamalPublicKey, signedData) {
+		t.Error("Echec de la vérification de la signature.")
+	}
 }

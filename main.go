@@ -20,7 +20,7 @@ Usage: gocrypto { aes | elgamal }
             encrypt <pub-key-file> <plain-file> <cipher-file>
             decrypt <priv-key-file> <cipher-file> [ <plain-file> ]
             sign <priv-key-file> <file>
-            check <pub-key-file> <file>
+            check <pub-key-file> <signed-file>
 `[1:])
 	os.Exit(255)
 }
@@ -134,6 +134,37 @@ func elgamal() {
 			os.Stdout.Write(d)
 		} else {
 			writeBytes(d, dataPath)
+		}
+	case "sign":
+		fs := flag.NewFlagSet("sign", flag.ExitOnError)
+		fs.Parse(os.Args[3:])
+
+		if fs.Arg(0) == "" || fs.Arg(1) == "" {
+			usage()
+		}
+
+		privateKeyPath, dataPath := fs.Arg(0), fs.Arg(1)
+		data := readBytes(dataPath)
+		priv := LoadPrivateKey(readBytes(privateKeyPath))
+
+		signedData := ElgamalSign(priv, data)
+		writeBytes(signedData, dataPath+".signed")
+	case "check":
+		fs := flag.NewFlagSet("sign", flag.ExitOnError)
+		fs.Parse(os.Args[3:])
+
+		if fs.Arg(0) == "" || fs.Arg(1) == "" {
+			usage()
+		}
+
+		pubKeyPath, signedDataPath := fs.Arg(0), fs.Arg(1)
+		signedData := readBytes(signedDataPath)
+		pub := LoadPublicKey(readBytes(pubKeyPath))
+
+		if ElgamalCheck(pub, signedData) {
+			fmt.Println("Signature OK")
+		} else {
+			fmt.Println("Invalid signature")
 		}
 	default:
 		usage()

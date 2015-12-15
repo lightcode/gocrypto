@@ -34,13 +34,35 @@ func randomBigInt(size int) *big.Int {
 	return b
 }
 
+func intToBytes(n int) []byte {
+	res := make([]byte, 4)
+
+	for i := 0; i < 4; i++ {
+		res[i] = byte(n & 0xFF)
+		n = n >> 8
+	}
+
+	return res
+}
+
+func bytesToInt(b []byte) int {
+	res := 0
+
+	for i := 0; i < 4; i++ {
+		res += int(b[i]) << uint(8*i)
+	}
+
+	return res
+}
+
 // Sérialisation de plusieurs tableau de byte à la suite
 // pour en former un.
 // Chaque tableau est concatainé sous la forme : "len(d) | d..."
 func serialize(fields ...[]byte) []byte {
 	var out []byte
 	for _, v := range fields {
-		out = append(append(out, byte(len(v))), v...)
+		out = append(out, intToBytes(len(v))...)
+		out = append(out, v...)
 	}
 	return out
 }
@@ -49,14 +71,14 @@ func serialize(fields ...[]byte) []byte {
 // serialize.
 func deserialize(bytes []byte) [][]byte {
 	var res [][]byte
-	k, s, l := 0, 1, 0
+	k, l := 0, 0
 
 	for {
-		l = int(bytes[k])
+		s := k + 4
+		l = bytesToInt(bytes[k : k+4])
 		res = append(res, bytes[s:s+l])
 
-		k = k + l + 1
-		s = k + 1
+		k = s + l
 		if k >= len(bytes) {
 			break
 		}

@@ -231,11 +231,9 @@ func elgamalDecryptBytes(priv *ElgamalPrivateKey, c1bytes, c2bytes []byte) (plai
 // ElgamalDecrypt déchiffre les messages chiffrés avec la
 // fonction ElgamalEncrypt
 func ElgamalDecrypt(priv *ElgamalPrivateKey, ciphertext []byte) (plaintext []byte) {
-	// Récupère la taille de c1
-	c1size := ciphertext[len(ciphertext)-1]
-
 	// Récupère c1 et c2 sous la forme de tableau d'octets
-	c1bytes, c2bytes := ciphertext[0:c1size], ciphertext[c1size:len(ciphertext)-1]
+	d := deserialize(ciphertext)
+	c1bytes, c2bytes := d[0], d[1]
 
 	// Déchiffre le message chiffré
 	plaintext = elgamalDecryptBytes(priv, c1bytes, c2bytes)
@@ -249,8 +247,91 @@ func ElgamalDecrypt(priv *ElgamalPrivateKey, ciphertext []byte) (plaintext []byt
 func ElgamalEncrypt(pubkey *ElgamalPublicKey, plaintext []byte) (ciphertext []byte) {
 	c1, c2 := elgamalEncryptBytes(pubkey, plaintext)
 
-	// Concataine la taille de c1 en mot de 8 bits, c1 et c2 dans un même tableau
-	ciphertext = append(append(c1, c2...), byte(len(c1)))
+	// Rassemble c1 et c2 dans un même tableau
+	return serialize(c1, c2)
+}
 
-	return
+func sign(priv *ElgamalPrivateKey, data []byte) (signature []byte) {
+	var y *big.Int
+
+	// Calcul du nombre de d'élément de Zp
+	p := new(big.Int).Add(priv.Q, big1)
+
+	// Calcul de p-1
+	pMinus1 := new(big.Int).Sub(p, big1)
+
+	// On choisit aléatoirement un nombre entre 1 et (q-1)
+	// y doit être premier avec (p-1)
+	for {
+		y = randRange(big1, new(big.Int).Sub(priv.Q, big1))
+		if new(big.Int).GCD(nil, nil, y, pMinus1).Cmp(big1) == 0 {
+			break
+		}
+	}
+
+	// Calcul de l'inver de y
+	yInv := new(big.Int).ModInverse(y, pMinus1)
+
+	// Calcul de s1 = g^y  (mod p)
+	s1 := new(big.Int).Exp(priv.G, y, p)
+
+	// Calcul du hash du document
+	hm := new(big.Int).SetBytes(hash(data))
+
+	// Calcul de s2 = (hm - x*s1)*y⁻¹  (mod p)
+	s2 := new(big.Int).Set(hm)
+	s2.Sub(s2, new(big.Int).Mul(priv.X, s1))
+	s2.Mul(s2, yInv)
+	s2.Mod(s2, pMinus1)
+
+	// Concatène s1 et s2
+	return serialize(s1.Bytes(), s2.Bytes())
+}
+
+func check(pub *ElgamalPublicKey, data, signature []byte) bool {
+	var (
+		s1 = new(big.Int)
+		s2 = new(big.Int)
+	)
+
+	// Récupère s1 et s2 depuis la signature
+	d := deserialize(signature)
+	s1.SetBytes(d[0])
+	s2.SetBytes(d[1])
+
+	// Calcul du nombre de d'élément de Zp
+	p := new(big.Int).Add(pub.Q, big1)
+
+	// Calcul du hash du document
+	hm := new(big.Int).SetBytes(hash(data))
+
+	// Calcul de la première moitié de l'égalité
+	// a = g^hm  (mod p)
+	a := new(big.Int).Exp(pub.G, hm, p)
+
+	// Calcul de la seconde moitié de l'égalité
+	// b = h^s1 * s1^s2  (mod p)
+	b := new(big.Int).Exp(pub.H, s1, p)
+	b.Mul(b, new(big.Int).Exp(s1, s2, p))
+	b.Mod(b, p)
+
+	return a.Cmp(b) == 0
+}
+
+func hash(data []byte) []byte {
+	return data[:10]
+}
+
+// ElgamalSign signe le document "data" et concataine la signature
+// au document.
+func ElgamalSign(priv *ElgamalPrivateKey, data []byte) (signedData []byte) {
+	signature := sign(priv, data)
+	return serialize(data, signature)
+}
+
+// ElgamalCheck vérifie que la signature du document est bien valide.
+func ElgamalCheck(pub *ElgamalPublicKey, signedData []byte) bool {
+	d := deserialize(signedData)
+	data, signature := d[0], d[1]
+	return check(pub, data, signature)
 }
