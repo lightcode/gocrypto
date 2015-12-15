@@ -20,6 +20,63 @@ type ElgamalPrivateKey struct {
 	X *big.Int // X est généré aléatoirement lors de la création des clés
 }
 
+func appendWithSize(fields ...[]byte) []byte {
+	var out []byte
+	for _, v := range fields {
+		out = append(append(out, byte(len(v))), v...)
+	}
+	return out
+}
+
+// GetBytes renvoie sous forme d'octets la clé privée
+func (pub *ElgamalPublicKey) GetBytes() []byte {
+	return appendWithSize(pub.Q.Bytes(), pub.G.Bytes(), pub.H.Bytes())
+}
+
+// GetBytes renvoie sous forme d'octets la clé privée
+func (priv *ElgamalPrivateKey) GetBytes() []byte {
+	return append(priv.ElgamalPublicKey.GetBytes(), appendWithSize(priv.X.Bytes())...)
+}
+
+func readSizeValueBytes(bytes []byte) [][]byte {
+	var res [][]byte
+	k, s, l := 0, 1, 0
+
+	for {
+		l = int(bytes[k])
+		res = append(res, bytes[s:s+l])
+
+		k = k + l + 1
+		s = k + 1
+		if k >= len(bytes) {
+			break
+		}
+	}
+
+	return res
+}
+
+func LoadPrivateKey(b []byte) *ElgamalPrivateKey {
+	v := readSizeValueBytes(b)
+	return &ElgamalPrivateKey{
+		ElgamalPublicKey: ElgamalPublicKey{
+			Q: new(big.Int).SetBytes(v[0]),
+			G: new(big.Int).SetBytes(v[1]),
+			H: new(big.Int).SetBytes(v[2]),
+		},
+		X: new(big.Int).SetBytes(v[3]),
+	}
+}
+
+func LoadPublicKey(b []byte) *ElgamalPublicKey {
+	v := readSizeValueBytes(b)
+	return &ElgamalPublicKey{
+		Q: new(big.Int).SetBytes(v[0]),
+		G: new(big.Int).SetBytes(v[1]),
+		H: new(big.Int).SetBytes(v[2]),
+	}
+}
+
 // Génère un groupe cyclique Zp, trouve un générateur g et renvoie (p, g)
 // p est un nombre entier de size bits (size est multiple de 8)
 // Le nombre p est également supérieur à la taille maximale d'un message + 1

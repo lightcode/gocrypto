@@ -22,3 +22,21 @@ func TestElgamalEncryption(t *testing.T) {
 		}
 	}
 }
+
+func TestElgamalKeyStorage(t *testing.T) {
+	priv := GenerateElgamalKeys(160)
+	pub := priv.ElgamalPublicKey
+
+	// Test avec la clé publique
+	tpub := LoadPublicKey(pub.GetBytes())
+	if tpub.Q.Cmp(pub.Q) != 0 || tpub.H.Cmp(pub.H) != 0 || tpub.G.Cmp(pub.G) != 0 {
+		t.Error("Les deux clés publiques ne sont pas égales.")
+	}
+
+	// Test de la clé privée
+	tpriv := LoadPrivateKey(priv.GetBytes())
+	if tpriv.Q.Cmp(priv.Q) != 0 || tpriv.H.Cmp(priv.H) != 0 || tpriv.G.Cmp(priv.G) != 0 || tpriv.X.Cmp(priv.X) != 0 {
+		t.Error("Les deux clés privées ne sont pas égales.")
+	}
+
+}
