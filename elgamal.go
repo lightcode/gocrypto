@@ -20,44 +20,20 @@ type ElgamalPrivateKey struct {
 	X *big.Int // X est généré aléatoirement lors de la création des clés
 }
 
-func appendWithSize(fields ...[]byte) []byte {
-	var out []byte
-	for _, v := range fields {
-		out = append(append(out, byte(len(v))), v...)
-	}
-	return out
-}
-
 // GetBytes renvoie sous forme d'octets la clé privée
 func (pub *ElgamalPublicKey) GetBytes() []byte {
-	return appendWithSize(pub.Q.Bytes(), pub.G.Bytes(), pub.H.Bytes())
+	return serialize(pub.Q.Bytes(), pub.G.Bytes(), pub.H.Bytes())
 }
 
 // GetBytes renvoie sous forme d'octets la clé privée
 func (priv *ElgamalPrivateKey) GetBytes() []byte {
-	return append(priv.ElgamalPublicKey.GetBytes(), appendWithSize(priv.X.Bytes())...)
+	return append(priv.ElgamalPublicKey.GetBytes(), serialize(priv.X.Bytes())...)
 }
 
-func readSizeValueBytes(bytes []byte) [][]byte {
-	var res [][]byte
-	k, s, l := 0, 1, 0
-
-	for {
-		l = int(bytes[k])
-		res = append(res, bytes[s:s+l])
-
-		k = k + l + 1
-		s = k + 1
-		if k >= len(bytes) {
-			break
-		}
-	}
-
-	return res
-}
-
+// LoadPrivateKey permet de charger la clé publique mise sous la
+// forme d'un tableau de byte
 func LoadPrivateKey(b []byte) *ElgamalPrivateKey {
-	v := readSizeValueBytes(b)
+	v := deserialize(b)
 	return &ElgamalPrivateKey{
 		ElgamalPublicKey: ElgamalPublicKey{
 			Q: new(big.Int).SetBytes(v[0]),
@@ -68,8 +44,10 @@ func LoadPrivateKey(b []byte) *ElgamalPrivateKey {
 	}
 }
 
+// LoadPublicKey permet de charger la clé publique mise sous la
+// forme d'un tableau de byte
 func LoadPublicKey(b []byte) *ElgamalPublicKey {
-	v := readSizeValueBytes(b)
+	v := deserialize(b)
 	return &ElgamalPublicKey{
 		Q: new(big.Int).SetBytes(v[0]),
 		G: new(big.Int).SetBytes(v[1]),

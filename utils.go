@@ -34,6 +34,37 @@ func randomBigInt(size int) *big.Int {
 	return b
 }
 
+// Sérialisation de plusieurs tableau de byte à la suite
+// pour en former un.
+// Chaque tableau est concatainé sous la forme : "len(d) | d..."
+func serialize(fields ...[]byte) []byte {
+	var out []byte
+	for _, v := range fields {
+		out = append(append(out, byte(len(v))), v...)
+	}
+	return out
+}
+
+// Renvoie les différents tableaux sérialisé avec la fonction
+// serialize.
+func deserialize(bytes []byte) [][]byte {
+	var res [][]byte
+	k, s, l := 0, 1, 0
+
+	for {
+		l = int(bytes[k])
+		res = append(res, bytes[s:s+l])
+
+		k = k + l + 1
+		s = k + 1
+		if k >= len(bytes) {
+			break
+		}
+	}
+
+	return res
+}
+
 func writeBytes(b []byte, path string) {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 
