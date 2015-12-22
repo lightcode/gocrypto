@@ -95,12 +95,16 @@ func invMixColumns(b []byte) {
 }
 
 // Génère les différentes sous-clés
-func keyExpansion(key []byte, nr int) []byte {
-	finalKey := make([]byte, nr*len(key))
-	for i := range finalKey {
-		finalKey[i] = subByte(key[i%len(key)])
+func keyExpansions(key []byte, nr int) []byte {
+	keys := make([]byte, nr*len(key))
+
+	copy(keys[0:len(key)], key)
+
+	for i := len(key); i < len(keys); i++ {
+		keys[i] = subByte(keys[i-len(key)])
 	}
-	return finalKey
+
+	return keys
 }
 
 // Chiffre un block de 128 bits de text en clair
@@ -130,7 +134,7 @@ func encryptBlock(block, key []byte) {
 	nr := 6 + nk
 
 	// Génère toutes les clés
-	roundKeys := keyExpansion(key, nr)
+	roundKeys := keyExpansions(key, nr)
 
 	// Applique la première clé sur la block
 	key0 := subKey(roundKeys, 0, keySize)
@@ -178,7 +182,7 @@ func decryptBlock(block, key []byte) {
 	nr := 6 + nk
 
 	// Génère toutes les clés
-	roundKeys := keyExpansion(key, nr)
+	roundKeys := keyExpansions(key, nr)
 
 	// Applique la première clé sur la block
 	lastKey := subKey(roundKeys, nr-1, keySize)
