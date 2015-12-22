@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 // Effectue un XOR bit à bit entre le block et la clé
 func addRoundKey(b, k []byte) {
 	for i := range b {
@@ -68,30 +66,32 @@ func gmul(a, b byte) byte {
 	return p
 }
 
-// Mélange les colonnes du block
-func mixColumns(b []byte) {
+var mixMat = []byte{2, 3, 1, 1, 1, 2, 3, 1, 1, 1, 2, 3, 3, 1, 1, 2}
+var mixMatInv = []byte{14, 11, 13, 9, 9, 14, 11, 13, 13, 9, 14, 11, 11, 13, 9, 14}
+
+// Applique une fonction de mélange en fonction d'une matrice d'entrée
+func applyMixColumns(b, mat []byte) {
 	var a = make([]byte, len(b))
 
-	for i := 0; i < 4; i++ {
-		a[i] = gmul(2, b[i]) ^ gmul(3, b[i+4]) ^ b[i+8] ^ b[i+12]
-		a[i+4] = b[i] ^ gmul(2, b[i+4]) ^ gmul(3, b[i+8]) ^ b[i+12]
-		a[i+8] = b[i] ^ b[i+4] ^ gmul(2, b[i+8]) ^ gmul(3, b[i+12])
-		a[i+12] = gmul(3, b[i]) ^ b[i+4] ^ b[i+8] ^ gmul(2, b[i+12])
+	ncol := len(b) / 4
+
+	for i := 0; i < ncol; i++ {
+		for j := 0; j < 4; j++ {
+			a[(ncol*j)+i] = gmul(mat[j*4], b[i]) ^ gmul(mat[j*4+1], b[ncol+i]) ^ gmul(mat[j*4+2], b[(2*ncol)+i]) ^ gmul(mat[j*4+3], b[(3*ncol)+i])
+		}
 	}
 
 	copy(b, a)
 }
 
-// Inverse de la fonction mixColumns
+// Mélange les colonnes du state
+func mixColumns(b []byte) {
+	applyMixColumns(b, mixMat)
+}
+
+// Inverse la fonction de mélange de l'état
 func invMixColumns(b []byte) {
-	var a = make([]byte, len(b))
-	for i := 0; i < 4; i++ {
-		a[i] = gmul(14, b[i]) ^ gmul(11, b[i+4]) ^ gmul(13, b[i+8]) ^ gmul(9, b[i+12])
-		a[i+4] = gmul(9, b[i]) ^ gmul(14, b[i+4]) ^ gmul(11, b[i+8]) ^ gmul(13, b[i+12])
-		a[i+8] = gmul(13, b[i]) ^ gmul(9, b[i+4]) ^ gmul(14, b[i+8]) ^ gmul(11, b[i+12])
-		a[i+12] = gmul(11, b[i]) ^ gmul(13, b[i+4]) ^ gmul(9, b[i+8]) ^ gmul(14, b[i+12])
-	}
-	copy(b, a)
+	applyMixColumns(b, mixMatInv)
 }
 
 // Génère les différentes sous-clés
@@ -107,133 +107,103 @@ func keyExpansions(key []byte, nr int) []byte {
 	return keys
 }
 
-// Chiffre un block de 128 bits de text en clair
-func encryptBlock(block, key []byte) {
-	var currentKey []byte
-
-	// Taille de la clé en octet
-	keySize := len(key)
-
-	// Vérifie que le block a une taille de 16 octets (128 bits)
-	if len(block) != 16 {
-		panic(fmt.Sprintf("Wrong size of plaintext block (must be 128, not %d bits)", len(block)*8))
-	}
-
-	// Vérifie que la clé fait bien 128, 196 ou 256 bits
-	switch keySize * 8 {
-	case 128, 196, 256:
-		break
-	default:
-		panic(fmt.Sprintf("Wrong size of key (%d bits)", len(key)*8))
-	}
-
-	// Calcul le nombre de colonne de la matrice
-	nk := len(key) / 4
-
-	// Cacule le nombre de tournées nr
-	nr := 6 + nk
-
-	// Génère toutes les clés
-	roundKeys := keyExpansions(key, nr)
-
-	// Applique la première clé sur la block
-	key0 := subKey(roundKeys, 0, keySize)
-	addRoundKey(block, key0)
-
-	for i := 1; i < nr; i++ {
-		subBytes(block)
-		shiftRows(block)
-		mixColumns(block)
-		currentKey = subKey(roundKeys, i, keySize)
-		addRoundKey(block, currentKey)
-	}
-
-	// Dernière tournée
-	subBytes(block)
-	shiftRows(block)
-	lastKey := subKey(roundKeys, nr-1, keySize)
-	addRoundKey(block, lastKey)
-}
-
-// Déchiffre un block de 128 bits
-func decryptBlock(block, key []byte) {
-	var currentKey []byte
-
-	// Taille de la clé en octet
-	keySize := len(key)
-
-	// Vérifie que le block a une taille de 16 octets (128 bits)
-	if len(block) != 16 {
-		panic(fmt.Sprintf("Wrong size of plaintext block (must be 128, not %d bits)", len(block)*8))
-	}
-
-	// Vérifie que la clé fait bien 128, 196 ou 256 bits
-	switch keySize * 8 {
-	case 128, 196, 256:
-		break
-	default:
-		panic(fmt.Sprintf("Wrong size of key (%d bits)", len(key)*8))
-	}
-
-	// Calcul le nombre de colonne de la matrice
-	nk := len(key) / 4
-
-	// Cacule le nombre de tournées nr
-	nr := 6 + nk
-
-	// Génère toutes les clés
-	roundKeys := keyExpansions(key, nr)
-
-	// Applique la première clé sur la block
-	lastKey := subKey(roundKeys, nr-1, keySize)
-	addRoundKey(block, lastKey)
-	invSubBytes(block)
-	invShiftRows(block)
-
-	for i := (nr - 1); i > 0; i-- {
-		currentKey = subKey(roundKeys, i, keySize)
-		addRoundKey(block, currentKey)
-		invMixColumns(block)
-		invShiftRows(block)
-		invSubBytes(block)
-	}
-
-	key0 := subKey(roundKeys, 0, keySize)
-	addRoundKey(block, key0)
-}
-
 // Retourne la i-ème clé de la clé étendue
 func subKey(ke []byte, i, keySize int) []byte {
 	return ke[i*keySize : (i+1)*keySize]
 }
 
 // AESEncrypt chiffre avec l'agorithme AES un tableau de
-// byte avec une clé k de taille 128, 192 ou 256 bits
-func AESEncrypt(data, k []byte) (c []byte) {
-	var block []byte
+// byte avec une clé key de taille 128, 192 ou 256 bits
+func AESEncrypt(data, key []byte) []byte {
+	var (
+		block      []byte
+		currentKey []byte
+	)
 
-	data = addPadding(data, 128)
-	c = make([]byte, 0, len(data))
+	// Taille de la clé en octet
+	keySize := len(key)
 
-	for i := 0; i < (len(data) / 16); i++ {
-		block = data[i*16 : (i+1)*16]
-		encryptBlock(block, k)
-		c = append(c, block...)
+	// Calcul le nombre de colonne de la matrice
+	nk := len(key) / 4
+
+	// Cacule le nombre de tournées nr
+	nr := 6 + nk
+
+	// Génère toutes les clés
+	roundKeys := keyExpansions(key, nr)
+
+	data = addPadding(data, keySize*8)
+	cipher := make([]byte, 0, len(data))
+
+	for i := 0; i < len(data)/keySize; i++ {
+		block = data[i*keySize : (i+1)*keySize]
+
+		// Applique la première clé sur la block
+		key0 := subKey(roundKeys, 0, keySize)
+		addRoundKey(block, key0)
+
+		for j := 1; j < nr; j++ {
+			subBytes(block)
+			shiftRows(block)
+			mixColumns(block)
+			currentKey = subKey(roundKeys, j, keySize)
+			addRoundKey(block, currentKey)
+		}
+
+		// Dernière tournée
+		subBytes(block)
+		shiftRows(block)
+		lastKey := subKey(roundKeys, nr-1, keySize)
+		addRoundKey(block, lastKey)
+
+		cipher = append(cipher, block...)
 	}
 
-	return c
+	return cipher
 }
 
 // AESDecrypt déchiffre avec l'agorithme AES un tableau
 // de byte avec une clé k de taille 128, 192 ou 256 bits
-func AESDecrypt(cipher, k []byte) []byte {
-	var block []byte
+func AESDecrypt(cipher, key []byte) []byte {
+	var (
+		block      []byte
+		currentKey []byte
+	)
+
+	// Taille de la clé en octet
+	keySize := len(key)
+
+	// Calcule le nombre de colonne de la matrice
+	nk := len(key) / 4
+
+	// Cacule le nombre de tournées nr
+	nr := 6 + nk
+
+	// Génère toutes les clés
+	roundKeys := keyExpansions(key, nr)
 
 	m := make([]byte, 0, len(cipher))
 
-	for i := 0; i < (len(cipher) / 16); i++ {
-		block = cipher[i*16 : (i+1)*16]
-		decryptBlock(block, k)
+	for i := 0; i < (len(cipher) / keySize); i++ {
+		block = cipher[i*keySize : (i+1)*keySize]
+
+		// Applique la première clé sur la block
+		lastKey := subKey(roundKeys, nr-1, keySize)
+		addRoundKey(block, lastKey)
+		invSubBytes(block)
+		invShiftRows(block)
+
+		for j := (nr - 1); j > 0; j-- {
+			currentKey = subKey(roundKeys, j, keySize)
+			addRoundKey(block, currentKey)
+			invMixColumns(block)
+			invShiftRows(block)
+			invSubBytes(block)
+		}
+
+		key0 := subKey(roundKeys, 0, keySize)
+		addRoundKey(block, key0)
+
 		m = append(m, block...)
 	}
 
